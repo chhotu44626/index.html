@@ -3,86 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>मेरी आदतें (Habit Tracker)</title>
+    <title>आदत एवं कार्य ट्रैकर</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; }
-        .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #333; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        input[type="text"] { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        button#addBtn { padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button#addBtn:hover { background-color: #218838; }
-        ul { list-style-type: none; padding: 0; }
-        li { background: #fff; border-bottom: 1px solid #eee; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
-        li.completed span { text-decoration: line-through; color: #888; }
-        .action-btn { margin-left: 5px; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; }
-        .check-btn { background-color: #007bff; color: white; }
-        .delete-btn { background-color: #dc3545; color: white; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 10px; }
+        .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #1a73e8; margin-top: 0; }
+        
+        .input-group { display: flex; gap: 8px; margin-bottom: 20px; }
+        input[type="text"] { flex-grow: 1; padding: 10px; border: 2px solid #ccc; border-radius: 6px; font-size: 15px; }
+        button.add-btn { padding: 10px 15px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+        .habit-card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 15px; background: #fafafa; }
+        .habit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .serial-num { font-weight: bold; color: #1a73e8; font-size: 14px; }
+        .habit-title { font-size: 16px; font-weight: bold; color: #333; margin-top: 3px; }
+        .delete-btn { background: #dc3545; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+
+        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+        .day-header { font-size: 11px; font-weight: bold; color: #555; margin-bottom: 5px; }
+        
+        .mark-btn { width: 100%; height: 38px; border: 1px solid #ccc; border-radius: 6px; background: #fff; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .mark-btn.correct { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .mark-btn.wrong { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>आदत ट्रैकर</h1>
+    <h2>आदत एवं कार्य ट्रैकर</h2>
     
     <div class="input-group">
-        <input type="text" id="habitInput" placeholder="नई आदत लिखें (जैसे: योग)...">
-        <button id="addBtn">जोड़ें</button>
+        <input type="text" id="habitInput" placeholder="नई आदत/कार्य लिखें...">
+        <button class="add-btn" id="addBtn">+ जोड़ें</button>
     </div>
 
-    <ul id="habitList">
-        <!-- आदतें यहाँ दिखेंगी -->
-    </ul>
+    <div id="habitContainer"></div>
 </div>
 
 <script>
-    let habits = JSON.parse(localStorage.getItem('myHabits')) || [];
+    const daysArr = ['सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि', 'रवि'];
+    let habits = JSON.parse(localStorage.getItem('myMarkHabits')) || [];
 
-    const habitInput = document.getElementById('habitInput');
-    const addBtn = document.getElementById('addBtn');
-    const habitList = document.getElementById('habitList');
+    function render() {
+        const container = document.getElementById('habitContainer');
+        container.innerHTML = '';
 
-    function renderHabits() {
-        habitList.innerHTML = '';
-        habits.forEach((habit, index) => {
-            const li = document.createElement('li');
-            if (habit.completed) li.classList.add('completed');
+        if (habits.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#888;">अभी कोई आदत नहीं है। ऊपर लिखकर जोड़ें!</p>';
+            return;
+        }
 
-            li.innerHTML = `
-                <span>${habit.name}</span>
-                <div>
-                    <button class="action-btn check-btn" onclick="toggleComplete(${index})">
-                        ${habit.completed ? 'Undo' : 'Done'}
-                    </button>
-                    <button class="action-btn delete-btn" onclick="deleteHabit(${index})">हटाएं</button>
+        habits.forEach((habit, hIndex) => {
+            const card = document.createElement('div');
+            card.className = 'habit-card';
+
+            let daysHtml = '';
+            daysArr.forEach((day, dIndex) => {
+                const status = (habit.marks && habit.marks[dIndex]) || '';
+                let btnClass = '';
+                let btnText = '-';
+
+                if (status === 'correct') {
+                    btnClass = 'correct';
+                    btnText = '✓';
+                } else if (status === 'wrong') {
+                    btnClass = 'wrong';
+                    btnText = '✕';
+                }
+
+                daysHtml += `
+                    <div>
+                        <div class="day-header">${day}</div>
+                        <button class="mark-btn ${btnClass}" onclick="toggleMark(${hIndex}, ${dIndex})">${btnText}</button>
+                    </div>
+                `;
+            });
+
+            card.innerHTML = `
+                <div class="habit-header">
+                    <div>
+                        <div class="serial-num">नंबर #${hIndex + 1}</div>
+                        <div class="habit-title">${habit.name}</div>
+                    </div>
+                    <button class="delete-btn" onclick="deleteHabit(${hIndex})">हटाएं</button>
                 </div>
+                <div class="days-grid">${daysHtml}</div>
             `;
-            habitList.appendChild(li);
+            container.appendChild(card);
         });
-        localStorage.setItem('myHabits', JSON.stringify(habits));
+
+        localStorage.setItem('myMarkHabits', JSON.stringify(habits));
     }
 
-    addBtn.addEventListener('click', () => {
-        const text = habitInput.value;
-        if (text === '') return alert('कृपया कुछ लिखें!');
-        habits.push({ name: text, completed: false });
-        habitInput.value = '';
-        renderHabits();
+    document.getElementById('addBtn').addEventListener('click', () => {
+        const input = document.getElementById('habitInput');
+        if (!input.value.trim()) return alert('कृपया आदत का नाम लिखें!');
+        habits.push({ name: input.value.trim(), marks: {} });
+        input.value = '';
+        render();
     });
 
-    function toggleComplete(index) {
-        habits[index].completed = !habits[index].completed;
-        renderHabits();
+    function toggleMark(hIndex, dIndex) {
+        if (!habits[hIndex].marks) habits[hIndex].marks = {};
+        
+        const current = habits[hIndex].marks[dIndex] || '';
+        if (current === '') {
+            habits[hIndex].marks[dIndex] = 'correct'; // पहली बार में सही (✓)
+        } else if (current === 'correct') {
+            habits[hIndex].marks[dIndex] = 'wrong';   // दूसरी बार में गलत (✕)
+        } else {
+            habits[hIndex].marks[dIndex] = '';        // तीसरी बार में खाली (-)
+        }
+        render();
     }
 
-    function deleteHabit(index) {
-        habits.splice(index, 1);
-        renderHabits();
+    function deleteHabit(hIndex) {
+        if (confirm('क्या आप इसे हटाना चाहते हैं?')) {
+            habits.splice(hIndex, 1);
+            render();
+        }
     }
 
-    renderHabits();
+    render();
 </script>
 
 </body>
-  </html>
-  
+</html>
